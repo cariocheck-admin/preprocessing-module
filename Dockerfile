@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files and model weights
-COPY api.py quality_check.py mobnet_v2.onnx ./
+COPY api.py quality_check.py mobnet_v2.onnx mobnet_v2.onnx.data ./
 
 # Expose the default port (Render will override via PORT env var)
 EXPOSE 7860
