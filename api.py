@@ -123,16 +123,21 @@ async def analyze_view(
         ort_outs = ort_session.run(None, ort_inputs)
         outputs = ort_outs[0]
         
-        # Get predicted index
-        predicted_idx = np.argmax(outputs, axis=1)[0]
-        predicted_view = API_CLASSES[predicted_idx]
+        # Get predicted indices sorted by probability descending
+        sorted_indices = np.argsort(outputs[0])[::-1]
+        top_2_indices = sorted_indices[:2]
+        top_2_classes = [API_CLASSES[idx] for idx in top_2_indices]
 
         # D. Match Logic (Sanitized)
-        clean_predicted = predicted_view.strip().lower()
         clean_expected = expected_view.strip().lower()
+        clean_top_2 = [cls.strip().lower() for cls in top_2_classes]
+        is_match = clean_expected in clean_top_2
+
+        # Detailed logging for visibility on Render logs
+        print(f"[AI Pipeline] Expected View: '{expected_view}' | Top-1: '{top_2_classes[0]}' | Top-2: '{top_2_classes[1]}' | Match: {is_match}")
 
         # E. THE RESPONSE LOGIC
-        if clean_predicted == clean_expected:
+        if is_match:
             # Process and return image string
             enhanced_img = apply_enhancements(image_rgb)
             enhanced_bgr = cv2.cvtColor(enhanced_img, cv2.COLOR_RGB2BGR)
@@ -144,8 +149,11 @@ async def analyze_view(
                 "processed_image": f"data:image/png;base64,{img_base64}"
             }
         else:
+            print(f"[AI Pipeline] Rejecting image. Expected '{expected_view}' not found in top predictions {top_2_classes}")
             return {"match": "No", "processed_image": None}
 
     except Exception as e:
-        # Silently fail with "No" to keep the UI clean
+        import traceback
+        print("[AI Pipeline] Exception occurred during image validation:")
+        traceback.print_exc()
         return {"match": "No", "processed_image": None}
